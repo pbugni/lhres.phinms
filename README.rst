@@ -1,5 +1,5 @@
-lhres.util
-==========
+lhres.phinms
+============
 
 Longitudinal Health Record for Enhanced Surveilance, PHINMS module
 
