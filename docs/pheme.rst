@@ -1,7 +1,7 @@
-lhres Package
+pheme Package
 =============
 
-:mod:`lhres` Package
+:mod:`pheme` Package
 --------------------
 
 Namespace package - see subpackages.
@@ -11,5 +11,5 @@ Subpackages
 
 .. toctree::
 
-    lhres.phinms
+    pheme.phinms
 

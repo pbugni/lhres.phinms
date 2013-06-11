@@ -1,4 +1,4 @@
-LHRES (Longitudinal Health Record for Enhanced Surveillance)
+Public Health EHR Message Engine (PHEME)
 
 Copyright (c) 2013, University of Washington
 All rights reserved.

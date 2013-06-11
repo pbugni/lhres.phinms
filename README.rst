@@ -1,7 +1,7 @@
-lhres.phinms
+pheme.phinms
 ============
 
-Longitudinal Health Record for Enhanced Surveilance, PHINMS module
+Public Health EHR Message Engine (PHEME), PHINMS module
 
 License
 -------

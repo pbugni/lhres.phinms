@@ -1,7 +1,7 @@
-lhres
+pheme
 =====
 
 .. toctree::
    :maxdepth: 4
 
-   lhres
+   pheme

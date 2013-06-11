@@ -4,7 +4,7 @@ import logging
 import MySQLdb as mysql
 from MySQLdb import IntegrityError
 
-from lhres.util.config import Config
+from pheme.util.config import Config
 
 class PHINMS_DB(object):
     """ Abstraction for interacting w/ the PHIN-MS Database

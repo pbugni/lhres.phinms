@@ -1,5 +1,5 @@
 import unittest
-from lhres.phinms.phinms_receiver import PHINMS_DB
+from pheme.phinms.phinms_receiver import PHINMS_DB
 
 class TestPhinmsDB(unittest.TestCase):
     """Tests for the PHINMS_DB class"""

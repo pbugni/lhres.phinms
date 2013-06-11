@@ -1,5 +1,5 @@
 import unittest
-from lhres.phinms.upload import MBDS_Feeder, archive_by_date
+from pheme.phinms.upload import MBDS_Feeder, archive_by_date
 
 class TestUpload(unittest.TestCase):
 

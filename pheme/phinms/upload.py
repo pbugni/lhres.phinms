@@ -24,10 +24,10 @@ from time import sleep
 from urllib3 import HTTPConnectionPool
 from base64 import standard_b64encode
 
-from lhres.phinms.phinms_receiver import PHINMS_DB
-from lhres.util.config import Config, configure_logging
-from lhres.util.compression import expand_file
-from lhres.util.util import systemUnderLoad
+from pheme.phinms.phinms_receiver import PHINMS_DB
+from pheme.util.config import Config, configure_logging
+from pheme.util.compression import expand_file
+from pheme.util.util import systemUnderLoad
 
 
 def archive_by_date(base_dir, the_date):

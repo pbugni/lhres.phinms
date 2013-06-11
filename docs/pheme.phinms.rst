@@ -4,7 +4,7 @@ phinms Package
 :mod:`phinms_receiver` Module
 -----------------------------
 
-.. automodule:: lhres.phinms.phinms_receiver
+.. automodule:: pheme.phinms.phinms_receiver
     :members:
     :undoc-members:
     :show-inheritance:
@@ -12,7 +12,7 @@ phinms Package
 :mod:`upload` Module
 --------------------
 
-.. automodule:: lhres.phinms.upload
+.. automodule:: pheme.phinms.upload
     :members:
     :undoc-members:
     :show-inheritance:
