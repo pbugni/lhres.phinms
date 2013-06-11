@@ -82,6 +82,23 @@ class MBDS_Feeder(object):
         self.http_pool = HTTPConnectionPool(host=MBDS_UPLOAD_HOST,
                                             port=MBDS_UPLOAD_PORT,
                                             timeout=20)
+        self._copy_tempdir = None
+
+    @property
+    def copy_tempdir(self):
+        return self._copy_tempdir
+
+    @copy_tempdir.setter
+    def copy_tempdir(self, tempdir):
+        self._copy_tempdir = tempdir
+        if tempdir is None:
+            return
+        if not os.access(tempdir, os.W_OK):
+            raise RuntimeError("'%s' not found or not writeable" % tempdir)
+        # Have a valid temp directory.  This means user isn't uploading
+        # files, but rather just wants them copied to the tempdir.  
+        # Monkeypatch self to copy rather than feed.
+        self._feed = self._copy
 
     def mime_parts(self, filepath, filename):
         """Wrap the file in a dictionary for HTTP multipart post
@@ -167,6 +184,27 @@ class MBDS_Feeder(object):
             # Mark fed, or we'll cycle on these types of files.
             self.source_db.markfed([filename, ])
 
+    def _copy(self, filepath, filename):
+        """Simply copy the file to a filesystem dir
+
+        For debugging and reporting needs, just copy the file rather
+        than uploading.  Do NOT mark as fed, as this isn't an
+        offical upload.  Also skip sanity checks for encrypted files, etc.
+
+        :param filepath: full path to file containing data to upload
+        :param filename: original filename (i.e. not a temp or zip version)
+          matching the localFileName value from the workerqueue
+
+        """
+        with open(filepath, 'r') as fh:
+            try:
+                with open(os.path.join(self.copy_tempdir, filename), 'w')\
+                        as out:
+                    out.writelines(fh.readlines())
+            except Exception, e:
+                logging.error("Error: failed to copy %s", filename)
+                logging.exception(e)
+
     def upload(self, filename, filedate=None):
         """Upload the file to the MBDS_Upload app
 
@@ -219,6 +257,7 @@ class Execute(object):
         self.verbosity = 0
         self.files = None
         self.daemon_mode = True
+        self.copy_tempdir = None
 
     def _get_progression(self):
         return self.__progression
@@ -238,6 +277,8 @@ class Execute(object):
         source_db = PHINMS_DB()
         mbds_feeder = MBDS_Feeder(verbosity=self.verbosity,
                                    source_db=source_db)
+        mbds_feeder.copy_tempdir = self.copy_tempdir
+
         while True:
             try:  # long running process, capture interrupt
                 if systemUnderLoad():
@@ -282,6 +323,9 @@ class Execute(object):
         parser.add_option("-f", "--file", dest="namedfiles",
                           default=self.files, action='store_true',
                           help="only process named file(s)")
+        parser.add_option("--copy-to-tempdir", dest="tempdir",
+                          default=None, action='store',
+                          help="Don't upload or track, just copy files to named directory")
 
         (options, args) = parser.parse_args()
         if not parser.values.namedfiles:
@@ -297,6 +341,7 @@ class Execute(object):
             for filename in args:
                 self.files.append(filename)
 
+        self.copy_tempdir = parser.values.tempdir
         self.verbosity = parser.values.verbosity
         configure_logging(verbosity=self.verbosity, logfile='stderr')
         self.execute()
