@@ -2,8 +2,8 @@
 
 usage = """%prog [options] [-f file(s)]
 
-Script to upload files from a local PHINMS instance to the MBDS_Upload
-application, likely runningon a different server.
+Script to upload files from a local PHINMS instance to the PHEME_http_receiver
+channel, likely runningon a different server.
 
 Looks up all HL/7 batch files that haven't previously been uploaded,
 and feeds each one via HTTP POST to the configured service.
@@ -22,7 +22,6 @@ from optparse import OptionParser
 import os
 from time import sleep
 from urllib3 import HTTPConnectionPool
-from base64 import standard_b64encode
 
 from pheme.phinms.phinms_receiver import PHINMS_DB
 from pheme.util.config import Config, configure_logging
@@ -52,7 +51,7 @@ def archive_by_date(base_dir, the_date):
                                          "%Y-%m-%dT%H:%M:%S")
         except:
             logging.error("archive_by_date can't lookup %s" %
-                      str(the_date))
+                          str(the_date))
             raise ValueError("invalid arg to archive_by_date %s" %
                              str(the_date))
 
@@ -60,8 +59,8 @@ def archive_by_date(base_dir, the_date):
                                                the_date.month))
 
 
-class MBDS_Feeder(object):
-    """Uploads avaiable MBDS files to MBDS_Upload application """
+class Batchfile_Feeder(object):
+    """Uploads avaiable batch files to PHEME_http_receiver channel """
 
     def __init__(self, verbosity=0, source_db=None):
         self.verbosity = verbosity
@@ -74,13 +73,13 @@ class MBDS_Feeder(object):
 
         # Confirm the required directories are present
         if not os.path.isdir(self.phinms_receiving_dir):
-            raise ValueError("Can't find required directory %s" %\
-                self.phinms_receiving_dir) 
+            raise ValueError("Can't find required directory %s" %
+                             self.phinms_receiving_dir)
 
-        MBDS_UPLOAD_PORT = config.get('mbds_upload', 'port')
-        MBDS_UPLOAD_HOST = config.get('mbds_upload', 'host')
-        self.http_pool = HTTPConnectionPool(host=MBDS_UPLOAD_HOST,
-                                            port=MBDS_UPLOAD_PORT,
+        UPLOAD_PORT = config.get('pheme_http_receiver', 'port')
+        UPLOAD_HOST = config.get('pheme_http_receiver', 'host')
+        self.http_pool = HTTPConnectionPool(host=UPLOAD_HOST,
+                                            port=UPLOAD_PORT,
                                             timeout=20)
         self._copy_tempdir = None
 
@@ -96,7 +95,7 @@ class MBDS_Feeder(object):
         if not os.access(tempdir, os.W_OK):
             raise RuntimeError("'%s' not found or not writeable" % tempdir)
         # Have a valid temp directory.  This means user isn't uploading
-        # files, but rather just wants them copied to the tempdir.  
+        # files, but rather just wants them copied to the tempdir.
         # Monkeypatch self to copy rather than feed.
         self._feed = self._copy
 
@@ -109,8 +108,8 @@ class MBDS_Feeder(object):
 
         The naming of the dictionary keys (i.e. filedata) must sync
         with the service expectations.  For initial implementation,
-        this is in the MBDS_Upload channel running in Mirth as an HTTP
-        listener on the other side of the stunnel at mbds_upload
+        this is in the PHEME_http_receiver channel running in Mirth as an HTTP
+        listener on the other side of the stunnel at [pheme_http_receiver]
         {host,port}.
 
         """
@@ -123,16 +122,16 @@ class MBDS_Feeder(object):
         return d
 
     def _post(self, filepath, filename):
-        """POST the file to the MBDS_Upload application
+        """POST the file to the PHEME_http_receiver channel
 
-        :param filepath: full filesystem path to MBDS file to upload
+        :param filepath: full filesystem path to batchfile to upload
         :param filename: original filename (i.e. not a temp or zip version)
           matching the localFileName value from the workerqueue
 
         raises an exception unless a 200 is returned from the server.
-        
+
         """
-        url = "%(scheme)s://%(host)s:%(port)s/mbds_upload" %\
+        url = "%(scheme)s://%(host)s:%(port)s/" %\
             {'scheme': self.http_pool.scheme, 'host':
              self.http_pool.host,  'port': self.http_pool.port}
         response = self.http_pool.request('POST',
@@ -143,9 +142,9 @@ class MBDS_Feeder(object):
                 response.reason, 'file': filename,
                 'url': url}
         if response.status != 200:
-            logging.error("Failed POST of %(file)s to %(url)s, "\
-                          "%(reason)s", args) 
-            raise RuntimeError("Error %(status)d, '%(reason)s' in "\
+            logging.error("Failed POST of %(file)s to %(url)s, "
+                          "%(reason)s", args)
+            raise RuntimeError("Error %(status)d, '%(reason)s' in "
                                "posting %(file)s to %(url)s" % args)
         else:
             logging.info("%(file)s posted to %(url)s", args)
@@ -153,7 +152,7 @@ class MBDS_Feeder(object):
     def _feed(self, filepath, filename):
         """Feed the file to mirth, and handle bookkeeping
 
-        Upload the given file to the MBDS_Upload application for
+        Upload the given file to the PHEME_http_receiver channel for
         further processing.  Bookkeeping is done to prevent multiple
         uploads of the same file.
 
@@ -162,8 +161,8 @@ class MBDS_Feeder(object):
           matching the localFileName value from the workerqueue
 
         """
-        # Annually, when one of the upstream certificates expire, 
-        # PHINMS can't decrypt the files.  If the file looks illformed, 
+        # Annually, when one of the upstream certificates expire,
+        # PHINMS can't decrypt the files.  If the file looks illformed,
         # alert via logging, and move on.
         with open(filepath, 'r') as fh:
             first = fh.readline()
@@ -178,7 +177,7 @@ class MBDS_Feeder(object):
                 logging.error("Error: failed to upload %s", filename)
                 logging.exception(e)
         else:
-            logging.error("Error: batchfile '%s' doesn't begin with"\
+            logging.error("Error: batchfile '%s' doesn't begin with"
                           " expected FHS, but rather: '%s'", filename,
                           first[:25])
             # Mark fed, or we'll cycle on these types of files.
@@ -206,7 +205,7 @@ class MBDS_Feeder(object):
                 logging.exception(e)
 
     def upload(self, filename, filedate=None):
-        """Upload the file to the MBDS_Upload app
+        """Upload the file to the PHEME_http_receiver channel
 
         :param filename: batch filename to upload
         :param filedate: needs to be defined for files that have been
@@ -228,7 +227,7 @@ class MBDS_Feeder(object):
                                               filedate)
                 src = os.path.join(archive_dir, filename + '.gz')
                 if os.path.exists(src):
-                    expanded_file = expand_file(filename=src, 
+                    expanded_file = expand_file(filename=src,
                                                 zip_protocol='gzip',
                                                 output='file')
                     self._feed(expanded_file, filename)
@@ -237,14 +236,14 @@ class MBDS_Feeder(object):
                     if os.path.exists(src):
                         os.remove(expanded_file)
                     else:
-                        raise RuntimeError("Archived MBDS file gone "\
+                        raise RuntimeError("Archived batch file gone "
                                            "after expansion")
                 else:
-                    logging.error("Couldn't locate hl7 batch file "\
+                    logging.error("Couldn't locate hl7 batch file "
                                   "'%s' using date %s", filename,
                                   str(filedate))
             except:
-                logging.error("failed to locate hl7 batch file "\
+                logging.error("failed to locate hl7 batch file "
                               "'%s'", filename)
 
 
@@ -266,7 +265,7 @@ class Execute(object):
         "Property setter controls available values of progression"
         options = ('forwards', 'backwards')
         if progression not in options:
-            raise ValueError("Requested progression '%s' not in "\
+            raise ValueError("Requested progression '%s' not in "
                              "available options %s" % (progression,
                                                        options))
         self.__progression = progression
@@ -275,9 +274,9 @@ class Execute(object):
 
     def execute(self):
         source_db = PHINMS_DB()
-        mbds_feeder = MBDS_Feeder(verbosity=self.verbosity,
-                                   source_db=source_db)
-        mbds_feeder.copy_tempdir = self.copy_tempdir
+        feeder = Batchfile_Feeder(verbosity=self.verbosity,
+                                  source_db=source_db)
+        feeder.copy_tempdir = self.copy_tempdir
 
         while True:
             try:  # long running process, capture interrupt
@@ -297,7 +296,7 @@ class Execute(object):
                         sleep(5 * 60)
 
                 for batch_file, filedate in self.files:
-                    mbds_feeder.upload(batch_file, filedate)
+                    feeder.upload(batch_file, filedate)
 
                 self.files = None  # done with that batch
                 if not self.daemon_mode:
@@ -318,14 +317,15 @@ class Execute(object):
                           help="increase output verbosity")
         parser.add_option("-b", "--backwards", dest="progression",
                           default=self.progression,
-                          help="Progress backwards in time through "\
+                          help="Progress backwards in time through "
                           "available batch files (default is forwards)")
         parser.add_option("-f", "--file", dest="namedfiles",
                           default=self.files, action='store_true',
                           help="only process named file(s)")
         parser.add_option("--copy-to-tempdir", dest="tempdir",
                           default=None, action='store',
-                          help="Don't upload or track, just copy files to named directory")
+                          help="Don't upload or track, just copy files "
+                          "to named directory")
 
         (options, args) = parser.parse_args()
         if not parser.values.namedfiles:
@@ -335,8 +335,8 @@ class Execute(object):
             # User says they're feeding us files.  Gobble up the list
             self.daemon_mode = False
             if not len(args):
-                parser.error("must supply at least one filename with" \
-                                 "the files(-f) option")
+                parser.error("must supply at least one filename with"
+                             "the files(-f) option")
             self.files = []
             for filename in args:
                 self.files.append(filename)
